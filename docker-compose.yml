@@ -1,0 +1,60 @@
+version: "3.9"
+
+volumes:
+  data-postgresql:
+    driver: local
+
+services:
+  postgresql:
+    image: postgres:14
+
+    restart: always
+
+    volumes:
+      - data-postgresql:/var/lib/postgresql/data:rw
+
+    ports:
+      - ${POSTGRES_LISTEN:-127.0.0.1:5432:5432}
+
+    environment:
+      - PG_DATA=/var/lib/postgresql/data/pgdata
+
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB
+      - POSTGRES_USER
+
+  api:
+    build:
+      context: src/python/backend
+      dockerfile: ../../docker/backend/Dockerfile
+      target: production
+
+    restart: always
+
+    ports:
+      - ${API_LISTEN:-127.0.0.1:8000:8000}
+
+    environment:
+      - DATABASE_URL
+      - JWT_SECRET
+      - FORWARDED_ALLOW_IPS=*
+
+    depends_on:
+      - postgresql
+
+  webapp:
+    build:
+      context: src/js/webapp
+      dockerfile: ../../docker/webapp/Dockerfile
+      target: production
+
+    restart: always
+
+    ports:
+      - ${WEBAPP_LISTEN:-127.0.0.1:8080:80}
+
+    environment:
+      - VITE_API_URL
+
+    depends_on:
+      - api
